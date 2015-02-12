@@ -42,12 +42,7 @@ def query_db(query, args=(), one=False):
     cur.close()
     return (r[0] if r else None) if one else r
     
-def add_task(category, priority, description):
-    tasks = query_db('insert into tasks values(?,?,?)', [category, priority, description], one = False)
-   
-    #needed for saving in database
-    get_conn().commit()
-
+	
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
@@ -70,18 +65,35 @@ def logout():
 
 @app.route('/add', methods=['POST'])
 def add_entry():
-    if not session.get('logged_in'):
-    	abort(401)
-	g.db.execute('insert into entries (title, text) values (?, ?)',[request.form['title'], request.form['text']])
-    g.db.commit()
-    flash('New entry was successfully posted')
-    return redirect(url_for('show_entries'))
+	if not session.get('logged_in'):
+		abort(401)
+
+	tasks = query_db('insert into entries (category, priority, description) values(?,?,?)', [request.form['category'], int(request.form['priority']), request.form['description']], one = False)   
+	#needed for saving in database
+	get_conn().commit()
+	
+	flash('New entry was successfully posted')
+	return redirect(url_for('show_entries'))
+
+@app.route('/delete', methods=['POST'])
+def delete_entry():
+   
+	if not session.get('logged_in'):
+		abort(401)
+
+	tasks = query_db('delete from entries where rowid = (?)', request.form['rowid'])
+   
+	get_conn().commit()
+	
+	flash('Entry was successfully deleted')
+
+	return redirect(url_for('show_entries'))
 
 @app.route('/')
 @app.route('/show_entries')
 def show_entries():
-	db_result = query_db("select * from tasks")
-	entries = [dict(category=row[0], priority=row[1], description=row[2]) for row in db_result]
+	db_result = query_db("select * from entries")
+	entries = [dict(category=row[0], priority=row[1], description=row[2], rowid=row[3]) for row in db_result]
 	return render_template('show_entries.html', entries=entries)	
 
 
